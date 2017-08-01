@@ -81,9 +81,9 @@ cd "$tmpdir"
 
 git clone https://github.com/onespot/aws-ec2-ssh.git
 
-git checkout onespot-master
-
 cd "$tmpdir/aws-ec2-ssh"
+
+git checkout onespot-master
 
 cp authorized_keys_command.sh /opt/authorized_keys_command.sh
 cp import_users.sh /opt/import_users.sh
