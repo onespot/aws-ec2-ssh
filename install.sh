@@ -85,8 +85,8 @@ cd "$tmpdir/aws-ec2-ssh"
 
 git checkout onespot-master
 
-cp authorized_keys_command.sh /opt/authorized_keys_command.sh
-cp import_users.sh /opt/import_users.sh
+cp authorized_keys_command.sh /opt/aws-ec2-ssh/authorized_keys_command.sh
+cp import_users.sh /opt/aws-ec2-ssh/import_users.sh
 
 if [ "${IAM_GROUPS}" != "" ]
 then
@@ -121,16 +121,16 @@ fi
 condition=$(grep "#AuthorizedKeysCommand none" /etc/ssh/sshd_config | wc -l)
 if [ $condition -gt 0 ]
 then
-    sed -i 's:#AuthorizedKeysCommand none:AuthorizedKeysCommand /opt/authorized_keys_command.sh:g' /etc/ssh/sshd_config
+    sed -i 's:#AuthorizedKeysCommand none:AuthorizedKeysCommand /opt/aws-ec2-ssh/authorized_keys_command.sh:g' /etc/ssh/sshd_config
     sed -i 's:#AuthorizedKeysCommandUser nobody:AuthorizedKeysCommandUser nobody:g' /etc/ssh/sshd_config
 else
-    echo "AuthorizedKeysCommand /opt/authorized_keys_command.sh" >> /etc/ssh/sshd_config
+    echo "AuthorizedKeysCommand /opt/aws-ec2-ssh/authorized_keys_command.sh" >> /etc/ssh/sshd_config
     echo "AuthorizedKeysCommandUser nobody" >> /etc/ssh/sshd_config
 fi
 
-echo "*/10 * * * * root /opt/import_users.sh" > /etc/cron.d/import_users
+echo "*/10 * * * * root /opt/aws-ec2-ssh/import_users.sh" > /etc/cron.d/import_users
 chmod 0644 /etc/cron.d/import_users
 
-/opt/import_users.sh
+/opt/aws-ec2-ssh/import_users.sh
 
 service sshd restart
