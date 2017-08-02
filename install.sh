@@ -128,7 +128,7 @@ else
     echo "AuthorizedKeysCommandUser nobody" >> /etc/ssh/sshd_config
 fi
 
-echo "*/10 * * * * root PATH=/usr/local/bin:$PATH /opt/aws-ec2-ssh/import_users.sh" > /etc/cron.d/import_users
+echo "*/10 * * * * root PATH=/usr/local/bin:\$PATH /opt/aws-ec2-ssh/import_users.sh" > /etc/cron.d/import_users
 chmod 0644 /etc/cron.d/import_users
 
 /opt/aws-ec2-ssh/import_users.sh
