@@ -1,4 +1,4 @@
-#!/bin/bash -e
+#!/bin/sh -e
 
 show_help() {
 cat << EOF
@@ -133,4 +133,6 @@ chmod 0644 /etc/cron.d/import_users
 
 /opt/aws-ec2-ssh/import_users.sh
 
-service sshd restart
+# compatibility with alpine and system v
+[ `which rc-service` ] && rc-service sshd restart
+[ `which service` ] && service sshd restart
