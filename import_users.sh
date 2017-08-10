@@ -1,4 +1,4 @@
-#!/bin/bash -e
+#!/bin/sh -e
 
 # source configuration if it exists
 [ -f /etc/aws-ec2-ssh.conf ] && . /etc/aws-ec2-ssh.conf
