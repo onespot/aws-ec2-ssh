@@ -118,30 +118,40 @@ then
     echo "USERADD_ARGS=\"${USERADD_ARGS}\"" >> /etc/aws-ec2-ssh.conf
 fi
 
-condition=$(grep "#AuthorizedKeysCommand none" /etc/ssh/sshd_config | wc -l)
-if [ $condition -gt 0 ]
+if ls /etc/ssh/sshd_config
 then
-    sed -i 's:#AuthorizedKeysCommand none:AuthorizedKeysCommand /opt/aws-ec2-ssh/authorized_keys_command.sh:g' /etc/ssh/sshd_config
-    sed -i 's:#AuthorizedKeysCommandUser nobody:AuthorizedKeysCommandUser nobody:g' /etc/ssh/sshd_config
+    condition=$(grep "#AuthorizedKeysCommand none" /etc/ssh/sshd_config | wc -l)
+    if [ $condition -gt 0 ]
+    then
+        sed -i 's:#AuthorizedKeysCommand none:AuthorizedKeysCommand /opt/aws-ec2-ssh/authorized_keys_command.sh:g' /etc/ssh/sshd_config
+        sed -i 's:#AuthorizedKeysCommandUser nobody:AuthorizedKeysCommandUser nobody:g' /etc/ssh/sshd_config
+    else
+        echo "AuthorizedKeysCommand /opt/aws-ec2-ssh/authorized_keys_command.sh" >> /etc/ssh/sshd_config
+        echo "AuthorizedKeysCommandUser nobody" >> /etc/ssh/sshd_config
+    fi
 else
-    echo "AuthorizedKeysCommand /opt/aws-ec2-ssh/authorized_keys_command.sh" >> /etc/ssh/sshd_config
-    echo "AuthorizedKeysCommandUser nobody" >> /etc/ssh/sshd_config
+    echo "SSH is not installed."
 fi
 
-
-if ls /etc/periodic/15min
+if ! mount | grep '/etc/passwd' | grep -q 'ro'
 then
-    printf "#!/bin/sh\n\n /opt/aws-ec2-ssh/import_users.sh" > /etc/periodic/15min/import-users
-    chmod 0700 /etc/periodic/15min/import-users
-else
-    echo "*/10 * * * * root PATH=/usr/local/bin:\$PATH /opt/aws-ec2-ssh/import_users.sh" > /etc/cron.d/import_users
-    chmod 0644 /etc/cron.d/import_users
-fi
+    if ls /etc/periodic/15min
+    then
+        printf "#!/bin/sh\n\n /opt/aws-ec2-ssh/import_users.sh" > /etc/periodic/15min/import-users
+        chmod 0700 /etc/periodic/15min/import-users
+    else
+        echo "*/10 * * * * root PATH=/usr/local/bin:\$PATH /opt/aws-ec2-ssh/import_users.sh" > /etc/cron.d/import_users
+        chmod 0644 /etc/cron.d/import_users
+    fi
 
-/opt/aws-ec2-ssh/import_users.sh
+    /opt/aws-ec2-ssh/import_users.sh
+
+else
+    echo "/etc/passwd is mounted read-only"
+fi
 
 # compatibility with alpine and system v
-[ `which rc-service` ] && rc-service sshd restart
+[ `which rc-service` ] && [ `rc-service sshd describe`] && rc-service sshd restart
 [ `which service` ] && service sshd restart
 
 exit 0
