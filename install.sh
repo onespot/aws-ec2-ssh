@@ -1,4 +1,4 @@
-#!/bin/sh -e
+#!/bin/bash -e
 
 show_help() {
 cat << EOF
@@ -128,7 +128,8 @@ else
     echo "AuthorizedKeysCommandUser nobody" >> /etc/ssh/sshd_config
 fi
 
-if ! $(ls /etc/periodic/15min)
+
+if ls /etc/periodic/15min
 then
     printf "#!/bin/sh\n\n /opt/aws-ec2-ssh/import_users.sh" > /etc/periodic/15min/import-users
     chmod 0700 /etc/periodic/15min/import-users

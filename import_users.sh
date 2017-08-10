@@ -1,4 +1,4 @@
-#!/bin/sh -e
+#!/bin/bash -e
 
 # source configuration if it exists
 [ -f /etc/aws-ec2-ssh.conf ] && . /etc/aws-ec2-ssh.conf
@@ -39,10 +39,10 @@ fi
 : ${ASSUMEROLE:=""}
 
 # Possibility to provide a custom useradd program
-: ${USERADD_PROGRAM:="/usr/sbin/useradd"}
+: ${USERADD_PROGRAM:="/usr/sbin/adduser"}
 
 # Possibility to provide custom useradd arguments
-: ${USERADD_ARGS:="--create-home --shell /bin/bash"}
+: ${USERADD_ARGS:="-D -s /bin/bash"}
 
 # Initizalize INSTANCE and REGION variables
 INSTANCE_ID=$(curl -s http://instance-data//latest/meta-data/instance-id)
@@ -181,10 +181,12 @@ function create_or_update_local_user() {
 
     if ! id "${username}" >/dev/null 2>&1; then
         ${USERADD_PROGRAM} ${USERADD_ARGS} "${username}"
-        /bin/chown -R "${username}:${username}" "$(eval echo ~$username)"
+        uid=$(id ${username} -u)
+        gid=$(id ${username} -g)
+        /bin/chown -R "${uid}:${gid}" "$(eval echo ~$username)"
         log "Created new user ${username}"
     fi
-    /usr/sbin/usermod -a -G "${localusergroups}" "${username}"
+    /usr/sbin/adduser "${username}" "${localusergroups}"
 
     # Should we add this user to sudo ?
     if [[ ! -z "${SUDOERS_GROUPS}" ]]
@@ -202,7 +204,10 @@ function create_or_update_local_user() {
 
 function delete_local_user() {
     # First, make sure no new sessions can be started
-    /usr/sbin/usermod -L -s /sbin/nologin "${1}" || true
+    if which usermod
+    then
+        /usr/sbin/usermod -L -s /sbin/nologin "${1}" || true
+    fi
     # ask nicely and give them some time to shutdown
     /usr/bin/pkill -15 -u "${1}" || true
     sleep 5
@@ -210,7 +215,12 @@ function delete_local_user() {
     /usr/bin/pkill -9 -u "${1}" || true
     sleep 1
     # Remove account now that all processes for the user are gone
-    /usr/sbin/userdel -f -r "${1}"
+    opts=" --remove-home"
+    if deluser --help | grep -q force
+    then
+        opts="--force ${opt}"
+    fi
+    /usr/sbin/deluser --force ${opts}  "${1}"
     log "Deleted user ${1}"
 }
 
@@ -231,7 +241,7 @@ function sync_accounts() {
     fi
 
     # Check if local marker group exists, if not, create it
-    /usr/bin/getent group "${LOCAL_MARKER_GROUP}" >/dev/null 2>&1 || /usr/sbin/groupadd "${LOCAL_MARKER_GROUP}"
+    /usr/bin/getent group "${LOCAL_MARKER_GROUP}" >/dev/null 2>&1 || /usr/sbin/addgroup "${LOCAL_MARKER_GROUP}"
 
     # setup the aws credentials if needed
     setup_aws_credentials
@@ -252,7 +262,7 @@ function sync_accounts() {
     sudo_users=$(get_clean_sudoers_users | sort | uniq)
     local_users=$(get_local_users | sort | uniq)
 
-    intersection=$(echo ${local_users} ${iam_users} | tr " " "\n" | sort | uniq -D | uniq)
+    intersection=$(echo ${local_users} ${iam_users} | tr " " "\n" | sort | uniq -d | uniq)
     removed_users=$(echo ${local_users} ${intersection} | tr " " "\n" | sort | uniq -u)
 
     # Add or update the users found in IAM
