@@ -143,3 +143,5 @@ fi
 # compatibility with alpine and system v
 [ `which rc-service` ] && rc-service sshd restart
 [ `which service` ] && service sshd restart
+
+exit 0
