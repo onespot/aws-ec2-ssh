@@ -202,6 +202,8 @@ function create_or_update_local_user() {
                 [[ ! -f "${SaveUserSudoFilePath}" ]] || rm "${SaveUserSudoFilePath}"
             fi
         fi
+    else
+        log "(/etc/sudoers.d) does not exist couldn't add ${username}."
     fi
 }
 
@@ -274,7 +276,7 @@ function sync_accounts() {
         then
             create_or_update_local_user "${user}" "$sudo_users"
         else
-            echo "Can not import IAM user ${user}. User name is longer than 32 characters."
+            log "Can not import IAM user ${user}. User name is longer than 32 characters."
         fi
     done
 
