@@ -189,15 +189,18 @@ function create_or_update_local_user() {
     /usr/sbin/adduser "${username}" "${localusergroups}"
 
     # Should we add this user to sudo ?
-    if [[ ! -z "${SUDOERS_GROUPS}" ]]
+    if [ -d "/etc/sudoers.d"]
     then
-        SaveUserFileName=$(echo "${username}" | tr "." " ")
-        SaveUserSudoFilePath="/etc/sudoers.d/$SaveUserFileName"
-        if [[ "${SUDOERS_GROUPS}" == "##ALL##" ]] || echo "${sudousers}" | grep "^${username}\$" > /dev/null
+        if [[ ! -z "${SUDOERS_GROUPS}" ]]
         then
-            echo "${username} ALL=(ALL) NOPASSWD:ALL" > "${SaveUserSudoFilePath}"
-        else
-            [[ ! -f "${SaveUserSudoFilePath}" ]] || rm "${SaveUserSudoFilePath}"
+            SaveUserFileName=$(echo "${username}" | tr "." " ")
+            SaveUserSudoFilePath="/etc/sudoers.d/$SaveUserFileName"
+            if [[ "${SUDOERS_GROUPS}" == "##ALL##" ]] || echo "${sudousers}" | grep "^${username}\$" > /dev/null
+            then
+                echo "${username} ALL=(ALL) NOPASSWD:ALL" > "${SaveUserSudoFilePath}"
+            else
+                [[ ! -f "${SaveUserSudoFilePath}" ]] || rm "${SaveUserSudoFilePath}"
+            fi
         fi
     fi
 }
