@@ -39,10 +39,10 @@ fi
 : ${ASSUMEROLE:=""}
 
 # Possibility to provide a custom useradd program
-: ${USERADD_PROGRAM:="/usr/sbin/adduser"}
+: ${USERADD_PROGRAM:="/usr/sbin/useradd"}
 
 # Possibility to provide custom useradd arguments
-: ${USERADD_ARGS:="-D -s /bin/bash"}
+: ${USERADD_ARGS:="--create-home --shell /bin/bash"}
 
 # Initizalize INSTANCE and REGION variables
 INSTANCE_ID=$(curl -s http://instance-data//latest/meta-data/instance-id)
@@ -181,38 +181,28 @@ function create_or_update_local_user() {
 
     if ! id "${username}" >/dev/null 2>&1; then
         ${USERADD_PROGRAM} ${USERADD_ARGS} "${username}"
-        uid=$(id ${username} -u)
-        gid=$(id ${username} -g)
-        /bin/chown -R "${uid}:${gid}" "$(eval echo ~$username)"
+        /bin/chown -R "${username}:${username}" "$(eval echo ~$username)"
         log "Created new user ${username}"
     fi
-    /usr/sbin/adduser "${username}" "${localusergroups}"
+    /usr/sbin/usermod -a -G "${localusergroups}" "${username}"
 
     # Should we add this user to sudo ?
-    if [ -d "/etc/sudoers.d"]
+    if [[ ! -z "${SUDOERS_GROUPS}" ]]
     then
-        if [[ ! -z "${SUDOERS_GROUPS}" ]]
+        SaveUserFileName=$(echo "${username}" | tr "." " ")
+        SaveUserSudoFilePath="/etc/sudoers.d/$SaveUserFileName"
+        if [[ "${SUDOERS_GROUPS}" == "##ALL##" ]] || echo "${sudousers}" | grep "^${username}\$" > /dev/null
         then
-            SaveUserFileName=$(echo "${username}" | tr "." " ")
-            SaveUserSudoFilePath="/etc/sudoers.d/$SaveUserFileName"
-            if [[ "${SUDOERS_GROUPS}" == "##ALL##" ]] || echo "${sudousers}" | grep "^${username}\$" > /dev/null
-            then
-                echo "${username} ALL=(ALL) NOPASSWD:ALL" > "${SaveUserSudoFilePath}"
-            else
-                [[ ! -f "${SaveUserSudoFilePath}" ]] || rm "${SaveUserSudoFilePath}"
-            fi
+            echo "${username} ALL=(ALL) NOPASSWD:ALL" > "${SaveUserSudoFilePath}"
+        else
+            [[ ! -f "${SaveUserSudoFilePath}" ]] || rm "${SaveUserSudoFilePath}"
         fi
-    else
-        log "(/etc/sudoers.d) does not exist couldn't add ${username}."
     fi
 }
 
 function delete_local_user() {
     # First, make sure no new sessions can be started
-    if which usermod
-    then
-        /usr/sbin/usermod -L -s /sbin/nologin "${1}" || true
-    fi
+    /usr/sbin/usermod -L -s /sbin/nologin "${1}" || true
     # ask nicely and give them some time to shutdown
     /usr/bin/pkill -15 -u "${1}" || true
     sleep 5
@@ -220,12 +210,7 @@ function delete_local_user() {
     /usr/bin/pkill -9 -u "${1}" || true
     sleep 1
     # Remove account now that all processes for the user are gone
-    opts=" --remove-home"
-    if deluser --help | grep -q force
-    then
-        opts="--force ${opt}"
-    fi
-    /usr/sbin/deluser --force ${opts}  "${1}"
+    /usr/sbin/userdel -f -r "${1}"
     log "Deleted user ${1}"
 }
 
@@ -246,7 +231,7 @@ function sync_accounts() {
     fi
 
     # Check if local marker group exists, if not, create it
-    /usr/bin/getent group "${LOCAL_MARKER_GROUP}" >/dev/null 2>&1 || /usr/sbin/addgroup "${LOCAL_MARKER_GROUP}"
+    /usr/bin/getent group "${LOCAL_MARKER_GROUP}" >/dev/null 2>&1 || /usr/sbin/groupadd "${LOCAL_MARKER_GROUP}"
 
     # setup the aws credentials if needed
     setup_aws_credentials
@@ -267,7 +252,7 @@ function sync_accounts() {
     sudo_users=$(get_clean_sudoers_users | sort | uniq)
     local_users=$(get_local_users | sort | uniq)
 
-    intersection=$(echo ${local_users} ${iam_users} | tr " " "\n" | sort | uniq -d | uniq)
+    intersection=$(echo ${local_users} ${iam_users} | tr " " "\n" | sort | uniq -D | uniq)
     removed_users=$(echo ${local_users} ${intersection} | tr " " "\n" | sort | uniq -u)
 
     # Add or update the users found in IAM
@@ -276,7 +261,7 @@ function sync_accounts() {
         then
             create_or_update_local_user "${user}" "$sudo_users"
         else
-            log "Can not import IAM user ${user}. User name is longer than 32 characters."
+            echo "Can not import IAM user ${user}. User name is longer than 32 characters."
         fi
     done
 
