@@ -28,10 +28,11 @@ Install import_users.sh and authorized_key_commands.
 EOF
 }
 
+export REPO_BRANCH="v1.8.0-onespot"
 export SSHD_CONFIG_FILE="/etc/ssh/sshd_config"
-export AUTHORIZED_KEYS_COMMAND_FILE="/opt/authorized_keys_command.sh"
-export IMPORT_USERS_SCRIPT_FILE="/opt/import_users.sh"
-export MAIN_CONFIG_FILE="/etc/aws-ec2-ssh.conf"
+export AUTHORIZED_KEYS_COMMAND_FILE="/opt/aws-ec2-ssh/authorized_keys_command.sh"
+export IMPORT_USERS_SCRIPT_FILE="/opt/aws-ec2-ssh/import_users.sh"
+export MAIN_CONFIG_FILE="/etc/aws-ec2-ssh/aws-ec2-ssh.conf"
 
 IAM_GROUPS=""
 SUDO_GROUPS=""
@@ -97,7 +98,7 @@ tmpdir=$(mktemp -d)
 
 cd "$tmpdir"
 
-git clone -b master https://github.com/widdix/aws-ec2-ssh.git
+git clone -b $REPO_BRANCH https://github.com/onespot/aws-ec2-ssh.git
 
 cd "$tmpdir/aws-ec2-ssh"
 
